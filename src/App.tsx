@@ -26,32 +26,29 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-<<<<<<< HEAD
 
-      {/* 👇 HASH ROUTER PARA GITHUB PAGES */}
-=======
->>>>>>> 5ca2570 (actualizaciòn del nombre de la maquina)
+      {/* HashRouter para GitHub Pages */}
       <HashRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
-          <Route path="/" element={<Layout><Dashboard /></Layout>} />
-          <Route path="/machine" element={<Layout><Machine /></Layout>} />
-          <Route path="/parts" element={<Layout><Parts /></Layout>} />
-          <Route path="/maintenance" element={<Layout><Maintenance /></Layout>} />
-          <Route path="/maintenance-records" element={<Layout><MaintenanceRecords /></Layout>} />
-          <Route path="/preventive" element={<Layout><Preventive /></Layout>} />
-          <Route path="/predictive" element={<Layout><Predictive /></Layout>} />
-          <Route path="/schedule" element={<Layout><Schedule /></Layout>} />
-          <Route path="/vendors" element={<Layout><Vendors /></Layout>} />
-          <Route path="/purchases" element={<Layout><Purchases /></Layout>} />
-          <Route path="/alerts" element={<Layout><Alerts /></Layout>} />
+
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="machine" element={<Machine />} />
+            <Route path="parts" element={<Parts />} />
+            <Route path="maintenance" element={<Maintenance />} />
+            <Route path="maintenance-records" element={<MaintenanceRecords />} />
+            <Route path="preventive" element={<Preventive />} />
+            <Route path="predictive" element={<Predictive />} />
+            <Route path="schedule" element={<Schedule />} />
+            <Route path="vendors" element={<Vendors />} />
+            <Route path="purchases" element={<Purchases />} />
+            <Route path="alerts" element={<Alerts />} />
+          </Route>
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </HashRouter>
-<<<<<<< HEAD
-
-=======
->>>>>>> 5ca2570 (actualizaciòn del nombre de la maquina)
     </TooltipProvider>
   </QueryClientProvider>
 );
