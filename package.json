@@ -3,11 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-<<<<<<< HEAD
-  "homepage": "https://github.com/KeithMeza24/Sistema_Mantenimiento_ZX7032.git",
-=======
-  "homepage": "https://jheremy99.github.io/Sistema_Mantenimiento_ZX7032",
->>>>>>> 5ca2570 (actualizaciòn del nombre de la maquina)
+  "homepage": "https://keithmeza24.github.io/Sistema_Mantenimiento_ZX7032/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
