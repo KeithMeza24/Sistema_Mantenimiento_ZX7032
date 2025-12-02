@@ -1,56 +1,107 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation, Outlet } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { User } from "@supabase/supabase-js";
+import { useToast } from "@/hooks/use-toast";
+import { NavLink } from "./NavLink";
+import Navbar from "./Navbar";
+import {
+  LayoutDashboard,
+  Cog,
+  Package,
+  Wrench,
+  Calendar,
+  Activity,
+  Users,
+  ShoppingCart,
+  Bell,
+} from "lucide-react";
 
-import Layout from "./components/Layout";
-import Dashboard from "./pages/Dashboard";
-import Machine from "./pages/Machine";
-import Parts from "./pages/Parts";
-import Maintenance from "./pages/Maintenance";
-import MaintenanceRecords from "./pages/MaintenanceRecords";
-import Preventive from "./pages/Preventive";
-import Predictive from "./pages/Predictive";
-import Schedule from "./pages/Schedule";
-import Vendors from "./pages/Vendors";
-import Purchases from "./pages/Purchases";
-import Alerts from "./pages/Alerts";
-import Auth from "./pages/Auth";
-import NotFound from "./pages/NotFound";
+const Layout = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
+  const [user, setUser] = useState<User | null>(null);
 
-const queryClient = new QueryClient();
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (!session && location.pathname !== "/auth") {
+        navigate("/auth");
+      }
+    });
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (!session && location.pathname !== "/auth") {
+        navigate("/auth");
+      }
+    });
 
-      {/* HashRouter para GitHub Pages */}
-      <HashRouter>
-        <Routes>
-          <Route path="/auth" element={<Auth />} />
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate, location.pathname]);
 
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="machine" element={<Machine />} />
-            <Route path="parts" element={<Parts />} />
-            <Route path="maintenance" element={<Maintenance />} />
-            <Route path="maintenance-records" element={<MaintenanceRecords />} />
-            <Route path="preventive" element={<Preventive />} />
-            <Route path="predictive" element={<Predictive />} />
-            <Route path="schedule" element={<Schedule />} />
-            <Route path="vendors" element={<Vendors />} />
-            <Route path="purchases" element={<Purchases />} />
-            <Route path="alerts" element={<Alerts />} />
-          </Route>
+  const navItems = [
+    { to: "/", icon: LayoutDashboard, label: "Dashboard" },
+    { to: "/machine", icon: Cog, label: "Machine" },
+    { to: "/parts", icon: Package, label: "Parts Inventory" },
+    { to: "/maintenance", icon: Wrench, label: "New Maintenance" },
+    { to: "/maintenance-records", icon: Wrench, label: "Maintenance Records" },
+    { to: "/preventive", icon: Calendar, label: "Preventive" },
+    { to: "/predictive", icon: Activity, label: "Predictive" },
+    { to: "/schedule", icon: Calendar, label: "Schedule" },
+    { to: "/vendors", icon: Users, label: "Vendors" },
+    { to: "/purchases", icon: ShoppingCart, label: "Purchases" },
+    { to: "/alerts", icon: Bell, label: "Alerts" },
+  ];
 
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </HashRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+  return (
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Sidebar */}
+      <aside className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
+        <div className="p-6 border-b border-sidebar-border">
+          <h1 className="text-xl font-bold text-sidebar-foreground">
+            CMMS System
+          </h1>
+          <p className="text-sm text-sidebar-foreground/70 mt-1">
+            ZX7032 Milling Machine
+          </p>
+        </div>
 
-export default App;
+        <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className="flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+                activeClassName="bg-sidebar-accent text-sidebar-foreground font-medium"
+              >
+                <Icon className="h-5 w-5" />
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </nav>
+      </aside>
+
+      {/* Main */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Navbar user={user} />
+
+        <main className="flex-1 overflow-y-auto bg-slate-50">
+          <div className="px-8 py-6 max-w-screen-2xl mx-auto w-full">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default Layout;
