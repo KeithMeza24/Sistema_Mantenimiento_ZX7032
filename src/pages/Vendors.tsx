@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizePayload } from "@/lib/sanitizePayload";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -50,7 +51,7 @@ const Vendors = () => {
 
   const createVendorMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      const { error } = await supabase.from("vendors").insert({
+      const payload = {
         name: formData.get("name") as string,
         contact_person: formData.get("contact_person") as string,
         email: formData.get("email") as string,
@@ -58,7 +59,9 @@ const Vendors = () => {
         address: formData.get("address") as string,
         website: formData.get("website") as string,
         notes: formData.get("notes") as string,
-      });
+      };
+      const sanitized = sanitizePayload(payload);
+      const { error } = await supabase.from("vendors").insert([sanitized]);
 
       if (error) throw error;
     },

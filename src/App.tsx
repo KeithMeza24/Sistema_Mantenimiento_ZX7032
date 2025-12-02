@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Machine from "./pages/Machine";
 import Parts from "./pages/Parts";
 import Maintenance from "./pages/Maintenance";
+import MaintenanceRecords from "./pages/MaintenanceRecords";
 import Preventive from "./pages/Preventive";
 import Predictive from "./pages/Predictive";
 import Schedule from "./pages/Schedule";
@@ -25,8 +26,11 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+<<<<<<< HEAD
 
       {/* 👇 HASH ROUTER PARA GITHUB PAGES */}
+=======
+>>>>>>> 5ca2570 (actualizaciòn del nombre de la maquina)
       <HashRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
@@ -34,6 +38,7 @@ const App = () => (
           <Route path="/machine" element={<Layout><Machine /></Layout>} />
           <Route path="/parts" element={<Layout><Parts /></Layout>} />
           <Route path="/maintenance" element={<Layout><Maintenance /></Layout>} />
+          <Route path="/maintenance-records" element={<Layout><MaintenanceRecords /></Layout>} />
           <Route path="/preventive" element={<Layout><Preventive /></Layout>} />
           <Route path="/predictive" element={<Layout><Predictive /></Layout>} />
           <Route path="/schedule" element={<Layout><Schedule /></Layout>} />
@@ -43,7 +48,10 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </HashRouter>
+<<<<<<< HEAD
 
+=======
+>>>>>>> 5ca2570 (actualizaciòn del nombre de la maquina)
     </TooltipProvider>
   </QueryClientProvider>
 );

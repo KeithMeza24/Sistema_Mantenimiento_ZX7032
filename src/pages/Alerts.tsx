@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizePayload } from "@/lib/sanitizePayload";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,12 +51,13 @@ const Alerts = () => {
 
   const resolveAlertMutation = useMutation({
     mutationFn: async (id: string) => {
+      const payload = {
+        is_resolved: true,
+      };
+      const sanitized = sanitizePayload(payload);
       const { error } = await supabase
         .from("alerts")
-        .update({
-          is_resolved: true,
-          resolved_at: new Date().toISOString(),
-        })
+        .update(sanitized)
         .eq("id", id);
       if (error) throw error;
     },

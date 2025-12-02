@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
 import { NavLink } from "./NavLink";
+import Navbar from "./Navbar";
 import {
   LayoutDashboard,
   Cog,
@@ -14,9 +15,7 @@ import {
   Users,
   ShoppingCart,
   Bell,
-  LogOut,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface LayoutProps {
@@ -47,17 +46,12 @@ const Layout = ({ children }: LayoutProps) => {
     return () => subscription.unsubscribe();
   }, [navigate, location.pathname]);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast({ title: "Signed out successfully" });
-    navigate("/auth");
-  };
-
   const navItems = [
     { to: "/", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/machine", icon: Cog, label: "Machine" },
     { to: "/parts", icon: Package, label: "Parts Inventory" },
     { to: "/maintenance", icon: Wrench, label: "New Maintenance" },
+    { to: "/maintenance-records", icon: Wrench, label: "Maintenance Records" },
     { to: "/preventive", icon: Calendar, label: "Preventive" },
     { to: "/predictive", icon: Activity, label: "Predictive" },
     { to: "/schedule", icon: Calendar, label: "Schedule" },
@@ -67,9 +61,9 @@ const Layout = ({ children }: LayoutProps) => {
   ];
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <aside className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Sidebar - Fixed */}
+      <aside className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col flex-shrink-0 h-screen">
         <div className="p-6 border-b border-sidebar-border">
           <h1 className="text-xl font-bold text-sidebar-foreground">
             CMMS System
@@ -78,7 +72,7 @@ const Layout = ({ children }: LayoutProps) => {
             ZX7032 Milling Machine
           </p>
         </div>
-        <nav className="p-4 space-y-1 flex-1">
+        <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -94,26 +88,20 @@ const Layout = ({ children }: LayoutProps) => {
             );
           })}
         </nav>
-        <div className="p-4 border-t border-sidebar-border">
-          <div className="text-xs text-sidebar-foreground/70 mb-2 truncate">
-            {user?.email}
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleSignOut}
-            className="w-full"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
-        </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        {children}
-      </main>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Navbar */}
+        <Navbar user={user} />
+
+        {/* Content Area with padding */}
+        <main className="flex-1 overflow-y-auto bg-slate-50">
+          <div className="px-8 py-6 max-w-screen-2xl mx-auto w-full">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 };

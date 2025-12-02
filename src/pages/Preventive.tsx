@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizePayload } from "@/lib/sanitizePayload";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -76,7 +77,7 @@ const Preventive = () => {
         ? checklistText.split("\n").filter((item) => item.trim())
         : null;
 
-      const { error } = await supabase.from("preventive_schedules").insert({
+      const payload = {
         machine_id: machine?.id,
         schedule_name: formData.get("schedule_name") as string,
         description: formData.get("description") as string,
@@ -88,7 +89,13 @@ const Preventive = () => {
           formData.get("estimated_duration_hours") as string
         ),
         checklist_items: checklistItems,
-      });
+      };
+
+      const sanitized = sanitizePayload(payload);
+
+      const { error } = await supabase
+        .from("preventive_schedules")
+        .insert([sanitized]);
 
       if (error) throw error;
     },

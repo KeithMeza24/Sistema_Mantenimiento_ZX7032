@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizePayload, sanitizePayloadArray } from "@/lib/sanitizePayload";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,26 +116,30 @@ const Maintenance = () => {
       }
 
       // Insert maintenance record
+      const maintenancePayload = {
+        machine_id: machineId,
+        work_order_number: formData.work_order_number,
+        maintenance_type: formData.maintenance_type,
+        priority: formData.priority,
+        status: formData.completed_at ? "completed" : "in_progress",
+        failure_description: formData.failure_description,
+        root_cause: formData.root_cause || null,
+        corrective_action: formData.corrective_action || null,
+        labor_hours: formData.labor_hours ? parseFloat(formData.labor_hours) : null,
+        downtime_hours: formData.downtime_hours ? parseFloat(formData.downtime_hours) : null,
+        cost: partsCost,
+        reported_by: formData.reported_by || null,
+        assigned_to: formData.assigned_to || null,
+        started_at: formData.started_at || null,
+        completed_at: formData.completed_at || null,
+        notes: formData.notes || null,
+      };
+
+      const sanitizedMaintenance = sanitizePayload(maintenancePayload);
+
       const { data: maintenanceData, error: maintenanceError } = await supabase
         .from("maintenance_records")
-        .insert([{
-          machine_id: machineId,
-          work_order_number: formData.work_order_number,
-          maintenance_type: formData.maintenance_type,
-          priority: formData.priority,
-          status: formData.completed_at ? "completed" : "in_progress",
-          failure_description: formData.failure_description,
-          root_cause: formData.root_cause || null,
-          corrective_action: formData.corrective_action || null,
-          labor_hours: formData.labor_hours ? parseFloat(formData.labor_hours) : null,
-          downtime_hours: formData.downtime_hours ? parseFloat(formData.downtime_hours) : null,
-          cost: partsCost,
-          reported_by: formData.reported_by || null,
-          assigned_to: formData.assigned_to || null,
-          started_at: formData.started_at || null,
-          completed_at: formData.completed_at || null,
-          notes: formData.notes || null,
-        }])
+        .insert([sanitizedMaintenance])
         .select()
         .single();
 
@@ -155,9 +160,10 @@ const Maintenance = () => {
           });
 
         if (partsToInsert.length > 0) {
+          const sanitizedParts = sanitizePayloadArray(partsToInsert);
           const { error: partsError } = await supabase
             .from("maintenance_parts_used")
-            .insert(partsToInsert);
+            .insert(sanitizedParts);
 
           if (partsError) throw partsError;
 
@@ -171,11 +177,14 @@ const Maintenance = () => {
                 .single();
 
               if (inventory) {
+                const invPayload = {
+                  quantity_on_hand: Math.max(0, inventory.quantity_on_hand - sp.quantity),
+                };
+                const sanitizedInv = sanitizePayload(invPayload);
+                
                 await supabase
                   .from("part_inventory")
-                  .update({
-                    quantity_on_hand: Math.max(0, inventory.quantity_on_hand - sp.quantity)
-                  })
+                  .update(sanitizedInv)
                   .eq("id", inventory.id);
               }
             }

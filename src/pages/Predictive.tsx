@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizePayload } from "@/lib/sanitizePayload";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -81,7 +82,7 @@ const Predictive = () => {
       if (minVal !== null && readingValue < minVal) isAlarm = true;
       if (maxVal !== null && readingValue > maxVal) isAlarm = true;
 
-      const { error } = await supabase.from("sensor_readings").insert({
+      const payload = {
         machine_id: machine?.id,
         sensor_name: formData.get("sensor_name") as string,
         sensor_type: sensorType,
@@ -91,19 +92,38 @@ const Predictive = () => {
         threshold_max: maxVal,
         is_alarm: isAlarm,
         notes: formData.get("notes") as string,
-      });
+      };
 
-      if (error) throw error;
+      const sanitized = sanitizePayload(payload);
+      console.log("Inserting sensor reading:", sanitized);
+
+      const { data, error } = await supabase
+        .from("sensor_readings")
+        .insert([sanitized])
+        .select();
+
+      if (error) {
+        console.error("Supabase sensor_readings insert error:", error);
+        throw new Error(error.message || "Failed to insert sensor reading");
+      }
+
+      console.log("Sensor reading inserted successfully:", data);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sensor-readings"] });
-      toast({ title: "Sensor reading recorded successfully" });
+      toast({
+        title: "Success",
+        description: "Sensor reading recorded successfully",
+      });
       setIsDialogOpen(false);
       setSensorType("");
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("Mutation error:", error);
       toast({
         title: "Error recording sensor reading",
+        description: error?.message || "Unable to record sensor reading",
         variant: "destructive",
       });
     },

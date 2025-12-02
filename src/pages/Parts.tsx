@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizePayload } from "@/lib/sanitizePayload";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +64,18 @@ const Parts = () => {
     reorder_quantity: "0",
     lead_time_days: "0",
   });
+  const [editingFields, setEditingFields] = useState({
+    part_number: "",
+    name: "",
+    description: "",
+    category: "",
+    unit_of_measure: "unit",
+    unit_cost: "0",
+    min_stock_level: "0",
+    reorder_point: "0",
+    reorder_quantity: "0",
+    lead_time_days: "0",
+  });
 
   useEffect(() => {
     fetchParts();
@@ -95,29 +108,40 @@ const Parts = () => {
 
   const handleAddPart = async () => {
     try {
+      const payload = {
+        part_number: newPart.part_number,
+        name: newPart.name,
+        description: newPart.description,
+        category: newPart.category,
+        unit_of_measure: newPart.unit_of_measure,
+        unit_cost: parseFloat(newPart.unit_cost),
+        min_stock_level: parseInt(newPart.min_stock_level),
+        reorder_point: parseInt(newPart.reorder_point),
+        reorder_quantity: parseInt(newPart.reorder_quantity),
+        lead_time_days: parseInt(newPart.lead_time_days),
+      };
+
+      const sanitized = sanitizePayload(payload);
+
       const { data: partData, error: partError } = await supabase
         .from("parts")
-        .insert([{
-          ...newPart,
-          unit_cost: parseFloat(newPart.unit_cost),
-          min_stock_level: parseInt(newPart.min_stock_level),
-          reorder_point: parseInt(newPart.reorder_point),
-          reorder_quantity: parseInt(newPart.reorder_quantity),
-          lead_time_days: parseInt(newPart.lead_time_days),
-        }])
+        .insert([sanitized])
         .select()
         .single();
 
       if (partError) throw partError;
 
       // Create inventory record
+      const inventoryPayload = {
+        part_id: partData.id,
+        quantity_on_hand: 0,
+        quantity_reserved: 0,
+      };
+      const sanitizedInv = sanitizePayload(inventoryPayload);
+
       const { error: inventoryError } = await supabase
         .from("part_inventory")
-        .insert([{
-          part_id: partData.id,
-          quantity_on_hand: 0,
-          quantity_reserved: 0,
-        }]);
+        .insert([sanitizedInv]);
 
       if (inventoryError) throw inventoryError;
 
@@ -159,46 +183,119 @@ const Parts = () => {
 
   const handleEditPart = async () => {
     if (!editingPart) return;
-    
-    try {
-      const inventory = Array.isArray(editingPart.part_inventory)
-        ? editingPart.part_inventory?.[0]
-        : editingPart.part_inventory;
 
-      if (!inventory) {
+    try {
+      // Prepare payload converting numbers safely
+      const partPayload: any = {
+        part_number: editingFields.part_number,
+        name: editingFields.name,
+        description: editingFields.description,
+        category: editingFields.category,
+        unit_of_measure: editingFields.unit_of_measure,
+        unit_cost: Number(parseFloat(editingFields.unit_cost) || 0),
+        min_stock_level: Number(parseInt(editingFields.min_stock_level) || 0),
+        reorder_point: Number(parseInt(editingFields.reorder_point) || 0),
+        reorder_quantity: Number(parseInt(editingFields.reorder_quantity) || 0),
+        lead_time_days: Number(parseInt(editingFields.lead_time_days) || 0),
+      };
+
+      const sanitized = sanitizePayload(partPayload);
+
+      // Update part and return the updated row (helps surfacing DB errors)
+      const { data: partData, error: partError } = await supabase
+        .from("parts")
+        .update(sanitized)
+        .eq("id", editingPart.id)
+        .select()
+        .single();
+
+      if (partError) {
+        console.error("Supabase parts update error:", partError);
         toast({
           title: "Error",
-          description: "No inventory record found",
+          description: partError.message || JSON.stringify(partError),
           variant: "destructive",
         });
         return;
       }
 
-      const quantity = parseInt(newQuantity);
-      const { error } = await supabase
-        .from("part_inventory")
-        .update({ 
-          quantity_on_hand: quantity,
-          quantity_available: quantity 
-        })
-        .eq("part_id", editingPart.id);
+      // Update or create inventory record
+      const inventory = Array.isArray(editingPart.part_inventory)
+        ? editingPart.part_inventory?.[0]
+        : editingPart.part_inventory;
 
-      if (error) throw error;
+      const quantity = Number(parseInt(newQuantity) || 0);
+
+      if (inventory) {
+        const invPayload = {
+          quantity_on_hand: quantity,
+        };
+        const sanitizedInv = sanitizePayload(invPayload);
+
+        const { error: invError } = await supabase
+          .from("part_inventory")
+          .update(sanitizedInv)
+          .eq("part_id", editingPart.id);
+
+        if (invError) {
+          console.error("Supabase inventory update error:", invError);
+          toast({
+            title: "Error",
+            description: invError.message || JSON.stringify(invError),
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
+        // If no inventory exists, create one to reflect the new quantity
+        const createInvPayload = {
+          part_id: editingPart.id,
+          quantity_on_hand: quantity,
+          quantity_reserved: 0,
+        };
+        const sanitizedCreate = sanitizePayload(createInvPayload);
+
+        const { error: createInvError } = await supabase
+          .from("part_inventory")
+          .insert([sanitizedCreate]);
+
+        if (createInvError) {
+          console.error("Supabase inventory create error:", createInvError);
+          toast({
+            title: "Error",
+            description: createInvError.message || JSON.stringify(createInvError),
+            variant: "destructive",
+          });
+          return;
+        }
+      }
 
       toast({
         title: "Success",
-        description: "Inventory updated successfully",
+        description: "Part updated successfully",
       });
 
       setIsEditDialogOpen(false);
       setEditingPart(null);
+      setEditingFields({
+        part_number: "",
+        name: "",
+        description: "",
+        category: "",
+        unit_of_measure: "unit",
+        unit_cost: "0",
+        min_stock_level: "0",
+        reorder_point: "0",
+        reorder_quantity: "0",
+        lead_time_days: "0",
+      });
       setNewQuantity("");
       fetchParts();
-    } catch (error) {
-      console.error("Error updating inventory:", error);
+    } catch (error: any) {
+      console.error("Unexpected error updating part:", error);
       toast({
         title: "Error",
-        description: "Failed to update inventory",
+        description: error?.message || JSON.stringify(error) || "Failed to update part",
         variant: "destructive",
       });
     }
@@ -388,6 +485,18 @@ const Parts = () => {
                         variant="outline"
                         onClick={() => {
                           setEditingPart(part);
+                          setEditingFields({
+                            part_number: part.part_number || "",
+                            name: part.name || "",
+                            description: part.description ?? "",
+                            category: part.category || "",
+                            unit_of_measure: part.unit_of_measure || "unit",
+                            unit_cost: (part.unit_cost ?? 0).toString(),
+                            min_stock_level: (part.min_stock_level ?? 0).toString(),
+                            reorder_point: (part.reorder_point ?? 0).toString(),
+                            reorder_quantity: (part.reorder_quantity ?? 0).toString(),
+                            lead_time_days: (part.lead_time_days ?? 0).toString(),
+                          });
                           setNewQuantity(inventory?.quantity_on_hand?.toString() || "0");
                           setIsEditDialogOpen(true);
                         }}
@@ -411,21 +520,94 @@ const Parts = () => {
             <DialogTitle>Update Inventory</DialogTitle>
           </DialogHeader>
           {editingPart && (
-            <div className="space-y-4">
-              <div>
-                <Label>Part</Label>
-                <p className="text-sm font-medium">{editingPart.name}</p>
-                <p className="text-xs text-muted-foreground">{editingPart.part_number}</p>
-              </div>
-              <div>
-                <Label htmlFor="quantity">Quantity on Hand</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  value={newQuantity}
-                  onChange={(e) => setNewQuantity(e.target.value)}
-                  placeholder="Enter new quantity"
-                />
+            <div>
+              <div className="grid grid-cols-2 gap-4 py-2">
+                <div>
+                  <Label>Part Number *</Label>
+                  <Input
+                    value={editingFields.part_number}
+                    onChange={(e) => setEditingFields({ ...editingFields, part_number: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Name *</Label>
+                  <Input
+                    value={editingFields.name}
+                    onChange={(e) => setEditingFields({ ...editingFields, name: e.target.value })}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label>Description</Label>
+                  <Input
+                    value={editingFields.description}
+                    onChange={(e) => setEditingFields({ ...editingFields, description: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Category *</Label>
+                  <Input
+                    value={editingFields.category}
+                    onChange={(e) => setEditingFields({ ...editingFields, category: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Unit of Measure</Label>
+                  <Input
+                    value={editingFields.unit_of_measure}
+                    onChange={(e) => setEditingFields({ ...editingFields, unit_of_measure: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Unit Cost *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editingFields.unit_cost}
+                    onChange={(e) => setEditingFields({ ...editingFields, unit_cost: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Min Stock Level *</Label>
+                  <Input
+                    type="number"
+                    value={editingFields.min_stock_level}
+                    onChange={(e) => setEditingFields({ ...editingFields, min_stock_level: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Reorder Point *</Label>
+                  <Input
+                    type="number"
+                    value={editingFields.reorder_point}
+                    onChange={(e) => setEditingFields({ ...editingFields, reorder_point: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Reorder Quantity *</Label>
+                  <Input
+                    type="number"
+                    value={editingFields.reorder_quantity}
+                    onChange={(e) => setEditingFields({ ...editingFields, reorder_quantity: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Lead Time (days) *</Label>
+                  <Input
+                    type="number"
+                    value={editingFields.lead_time_days}
+                    onChange={(e) => setEditingFields({ ...editingFields, lead_time_days: e.target.value })}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="quantity">Quantity on Hand</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    value={newQuantity}
+                    onChange={(e) => setNewQuantity(e.target.value)}
+                    placeholder="Enter new quantity"
+                  />
+                </div>
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>

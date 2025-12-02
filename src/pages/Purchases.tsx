@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizePayload } from "@/lib/sanitizePayload";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -81,20 +82,24 @@ const Purchases = () => {
     mutationFn: async (formData: FormData) => {
       const quantity = parseInt(formData.get("quantity") as string);
       const unitPrice = parseFloat(formData.get("unit_price") as string);
-      const totalPrice = quantity * unitPrice;
 
-      const { error } = await supabase.from("purchase_orders").insert({
+      const payload = {
         po_number: formData.get("po_number") as string,
         order_date: formData.get("order_date") as string,
         expected_delivery_date: formData.get("expected_delivery_date") as string,
         status: "pending",
         quantity,
         unit_price: unitPrice,
-        total_price: totalPrice,
         part_id: selectedPartId,
         vendor_id: selectedVendorId,
         notes: formData.get("notes") as string,
-      });
+      };
+
+      const sanitized = sanitizePayload(payload);
+
+      const { error } = await supabase
+        .from("purchase_orders")
+        .insert([sanitized]);
 
       if (error) throw error;
     },
@@ -120,9 +125,11 @@ const Purchases = () => {
         updateData.actual_delivery_date = new Date().toISOString().split("T")[0];
       }
 
+      const sanitized = sanitizePayload(updateData);
+
       const { error } = await supabase
         .from("purchase_orders")
-        .update(updateData)
+        .update(sanitized)
         .eq("id", id);
 
       if (error) throw error;
