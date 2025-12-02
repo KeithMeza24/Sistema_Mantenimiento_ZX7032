@@ -93,7 +93,7 @@ const Dashboard = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground mt-2">
-          Coffee Roaster Maintenance Overview
+          General description of milling machine maintenance
         </p>
       </div>
 
